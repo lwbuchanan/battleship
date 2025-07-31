@@ -1,0 +1,69 @@
+use crate::game;
+
+use std::net::{TcpListener, TcpStream};
+use std::io::{Read, Write};
+use std::io;
+use std::thread;
+
+pub struct Server {
+    ip: String,
+    port: String,
+}
+
+impl Server {
+    pub fn new(ip: &str, port: &str) -> Server {
+        Server {
+            ip: ip.to_owned(),
+            port: port.to_owned(),
+        }
+    }
+
+    pub fn run(&self) -> io::Result<()> {
+        let listener = TcpListener::bind(self.ip.to_owned() + ":" + &self.port)?;
+        println!("TCP listener on port {}", &self.port);
+
+        for connection in listener.incoming() {
+            let stream = connection?;
+            thread::spawn(|| {
+                handle_connection(stream);
+                println!("Connection closed");
+            });
+        }
+
+        Ok(())
+    }
+}
+
+fn handle_connection(mut stream: TcpStream) {
+    println!("Client {} has connected", stream.peer_addr().unwrap().ip());
+    let mut buff = [0; 64];
+    loop {
+        match stream.read(&mut buff) {
+            Ok(num_bytes) => {
+                let received: String = String::from_utf8_lossy(&buff[..num_bytes]).into_owned(); // Copy the buffer into a string
+                let received_words = received.trim().split('.').collect::<Vec<_>>();
+                for w in &received_words {
+                    println!("{w}")
+                }
+                match *received_words.get(0).unwrap() {
+                    "SHOOT" => {
+                        if game::is_occupied(received_words.get(1).unwrap()) {
+                            stream.write("HIT\n".as_bytes()).unwrap();
+                        } else {
+                            stream.write("MISS\n".as_bytes()).unwrap();
+                        }
+                    }
+                    "FORFEIT" => {
+                        break
+                    }
+                    _ => {
+                        stream.write("BADCOMMAND\n".as_bytes()).unwrap();
+                    }
+                };
+            },
+            Err(e) => panic!("Failed to read {e}")
+        }
+    }
+    stream.write("ok bye now\n".as_bytes()).unwrap();
+}
+
