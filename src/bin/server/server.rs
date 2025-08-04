@@ -1,4 +1,4 @@
-use battlesship::game;
+use battlesship::*;
 
 use std::net::{TcpListener, TcpStream};
 use std::io::{Read, Write};
@@ -37,7 +37,7 @@ impl Server {
 fn handle_connection(mut stream: TcpStream) {
     println!("Client {} has connected", stream.peer_addr().unwrap().ip());
     let mut buff = [0; 64];
-    let mut my_game = game::Game::new();
+    let mut board = battlesship::Board
     loop {
         match stream.read(&mut buff) {
             Ok(num_bytes) => {

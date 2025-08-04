@@ -1,6 +1,6 @@
-mod gameserver;
+mod server;
 
-use crate::gameserver::Server;
+use crate::server::Server;
 
 fn main() {
     let ip = "127.0.0.1";
