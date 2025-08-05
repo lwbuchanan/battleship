@@ -1,7 +1,13 @@
-mod ui;
+use std::io;
+use ratatui;
 
-use crate::ui::UI;
+mod app;
 
-fn main() {
-    UI::new();
+use crate::app::App;
+
+fn main() -> io::Result<()> {
+    let mut terminal = ratatui::init();
+    let result = App::new().run(&mut terminal);
+    ratatui::restore();
+    result
 }

@@ -8,6 +8,12 @@ pub struct Board {
 }
 
 impl Board {
+    pub fn new() -> Board {
+        Board {
+            grid: [[Tile::Empty; GRID_SIZE]; GRID_SIZE],
+            fleet: HashMap::new()
+        }
+    }
     // Sets the location of a ship, moving it if a ship of this type exists already
     // false if ship could not be placed in the given location
     pub fn place_ship(
@@ -40,7 +46,7 @@ impl Board {
         for i in 0..length {
             self.grid[(x + (i * hori as u8)) as usize]
                      [(y + (i * !hori as u8)) as usize] 
-                = Tile::Empty
+                = Tile::Occupied(ship_type)
         }
         true
     }
@@ -54,12 +60,20 @@ impl Board {
                     match self.fleet.get_mut(ship_type) {
                         Some(ship) => {
                             ship.health -= 1;
-                            ShotResult::Hit
+                            self.grid[x as usize][y as usize] = Tile::Destroyed(ship_type.clone());
+                            if ship.health <= 0 {
+                                ShotResult::Sunk
+                            } else {
+                                ShotResult::Hit
+                            }
                         },
                         None => ShotResult::Invalid,
                     }
                 }
-                Tile::Empty => ShotResult::Miss,
+                Tile::Empty => {
+                    self.grid[x as usize][y as usize] = Tile::Splashed;
+                    ShotResult::Miss
+                },
                 _ => ShotResult::Invalid,
             }
         }
@@ -69,9 +83,11 @@ impl Board {
 pub enum ShotResult {
     Hit,
     Miss,
+    Sunk,
     Invalid,
 }
 
+#[derive(Eq, PartialEq, Copy, Clone)]
 enum Tile {
     Occupied(ShipType),
     Destroyed(ShipType),
@@ -135,3 +151,8 @@ pub enum Orientation {
     Horizontal,
     Vertical,
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+// }
