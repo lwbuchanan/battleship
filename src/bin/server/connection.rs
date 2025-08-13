@@ -3,7 +3,7 @@ use std::convert::Infallible;
 use std::sync::Arc;
 
 use futures::{FutureExt, StreamExt};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::{
     Filter, 
@@ -18,7 +18,7 @@ pub struct Client {
 }
 
 // Thread safe, mutex locked map of clients
-pub type Clients = Arc<Mutex<HashMap<String, Client>>>;
+pub type Clients = Arc<RwLock<HashMap<String, Client>>>;
 
 // Helper for passing client arc between threads
 pub fn with_clients(clients: Clients) -> impl Filter<Extract = (Clients,), Error = Infallible> + Clone {
@@ -26,8 +26,10 @@ pub fn with_clients(clients: Clients) -> impl Filter<Extract = (Clients,), Error
 }
 
 pub async fn client_connection(ws: WebSocket, clients: Clients, mut client: Client, client_uuid: String) {
+    // sends to ws, receives from ws
     let (ws_sink, mut ws_stream) = ws.split();
 
+    // 
     let (client_sender, client_rcv) = mpsc::unbounded_channel();
 
     let client_rcv = UnboundedReceiverStream::new(client_rcv);
@@ -38,7 +40,7 @@ pub async fn client_connection(ws: WebSocket, clients: Clients, mut client: Clie
     }));
 
     client.sender = Some(client_sender);
-    clients.lock().await.insert(client_uuid.clone(), client);
+    clients.write().await.insert(client_uuid.clone(), client);
 
     println!("{client_uuid} connected");
 
@@ -53,10 +55,23 @@ pub async fn client_connection(ws: WebSocket, clients: Clients, mut client: Clie
         client_msg(&client_uuid, msg, &clients).await;
     }
 
-    clients.lock().await.remove(&client_uuid);
+    clients.write().await.remove(&client_uuid);
     println!("{client_uuid} disconnected");
 }
 
 async fn client_msg(client_uuid: &str, msg: Message, clients: &Clients) {
-    todo!()
+    println!("received message from {client_uuid}: {msg:?}");
+    let message = match msg.to_str() {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    if message == "ping" || message =="ping\n" {
+        return;
+    }
+}
+
+
+struct FindGameRequest {
+
 }

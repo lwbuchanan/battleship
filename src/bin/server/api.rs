@@ -8,7 +8,7 @@ use warp::{
     reply, 
 };
 
-use crate::client::{
+use crate::connection::{
     self, with_clients, Client, Clients
 };
 
@@ -63,7 +63,7 @@ async fn handle_register(body: RegisterRequest, clients: Clients) -> Result<impl
     let user_id = body.user_id;
     let client_uuid = Uuid::new_v4().simple().to_string();
 
-    clients.lock().await.insert(
+    clients.write().await.insert(
         client_uuid.clone(),
         Client {
             user_id,
@@ -77,7 +77,7 @@ async fn handle_register(body: RegisterRequest, clients: Clients) -> Result<impl
 }
 
 async fn handle_unregister(client_uuid: String, clients: Clients) -> Result<impl Reply, Rejection> {
-    clients.lock().await.remove(&client_uuid);
+    clients.write().await.remove(&client_uuid);
     Ok(StatusCode::OK)
 }
 
@@ -104,9 +104,9 @@ fn play_route(clients: Clients) -> impl Filter<Extract = (impl Reply,), Error = 
 }
 
 async fn handle_play(client_uuid: String, ws: Ws, clients: Clients) -> Result<impl Reply, Rejection> {
-    let client = clients.lock().await.get(&client_uuid).cloned();
+    let client = clients.write().await.get(&client_uuid).cloned();
     match client {
-        Some(c) => Ok(ws.on_upgrade(move |socket| client::client_connection(socket, clients, c, client_uuid))),
+        Some(c) => Ok(ws.on_upgrade(move |socket| connection::client_connection(socket, clients, c, client_uuid))),
         None => Err(warp::reject::not_found()),
     }
 }

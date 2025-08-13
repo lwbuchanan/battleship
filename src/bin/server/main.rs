@@ -1,7 +1,8 @@
 mod api;
-mod client;
+mod connection;
+mod game;
 
-use client::Clients;
+use connection::Clients;
 
 #[tokio::main]
 async fn main() {

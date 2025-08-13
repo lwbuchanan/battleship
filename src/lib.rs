@@ -3,16 +3,43 @@ use std::fmt;
 
 const GRID_SIZE: usize = 10;
 
+
+#[derive(PartialEq, Eq, Copy, Clone)]
+pub struct GridPosition {
+    row: char,
+    col: u8,
+}
+impl GridPosition {
+    pub fn new(row: char, col: u8) -> Option<Self> {
+        if ('a'..='j').contains(&row) && (1..=10).contains(&col) {
+            Some(GridPosition{row, col})
+        } else {
+            None
+        }
+    }
+
+    fn row_index(&self) -> usize {
+        self.row as usize - 97
+    }
+
+    fn col_index(&self) -> usize {
+        self.row as usize - 1
+    }
+}
+
+type Grid = [[Tile; GRID_SIZE]; GRID_SIZE];
+
+
 pub struct Board {
-    grid: [[Tile; GRID_SIZE]; GRID_SIZE],
+    grid: Grid,
     fleet: HashMap<ShipType, Ship>,
 }
 
 impl Board {
     pub fn new() -> Board {
         Board {
-            grid: [[Tile::Empty; GRID_SIZE]; GRID_SIZE],
-            fleet: HashMap::new()
+            grid: Grid::default(),
+            fleet: HashMap::new(),
         }
     }
     // Sets the location of a ship, moving it if a ship of this type exists already
@@ -20,12 +47,11 @@ impl Board {
     pub fn place_ship(
         &mut self,
         ship_type: ShipType,
-        row: u8,
-        col: u8,
+        position: GridPosition,
         orientation: Orientation,
     ) -> bool {
         let length = ship_type.length();
-        if !fits_in_grid(length, row, col, orientation) {
+        if !fits_in_grid(length, position, orientation) {
             return false;
         }
 
@@ -33,20 +59,20 @@ impl Board {
             Some(ship) => {
                 let hori = ship.orientation == Orientation::Horizontal;
                 for i in 0..length {
-                    self.grid[(ship.row + (i * !hori as u8)) as usize]
-                             [(ship.col + (i * hori as u8)) as usize] 
+                    self.grid[ship.position.row_index() + (i * !hori as u8) as usize]
+                             [ship.position.col_index() + (i * hori as u8) as usize]
                         = Tile::Empty
                 }
             }
             None => {
-                self.fleet.insert(ship_type, Ship::new(ship_type, row, col, orientation));
+                self.fleet.insert(ship_type, Ship::new(ship_type, position, orientation));
             }
         }
 
         let hori = orientation == Orientation::Horizontal;
         for i in 0..length {
-            self.grid[(row + (i * !hori as u8)) as usize]
-                     [(col + (i * hori as u8)) as usize] 
+            self.grid[position.row_index() + (i * !hori as u8) as usize]
+                     [position.col_index() + (i * hori as u8) as usize]
                 = Tile::Occupied(ship_type)
         }
         true
@@ -117,42 +143,43 @@ pub enum ShotResult {
     Invalid,
 }
 
-#[derive(Eq, PartialEq, Copy, Clone)]
+#[derive(Eq, PartialEq, Copy, Clone, Default)]
 enum Tile {
-    Occupied(ShipType),
-    Destroyed(ShipType),
+    #[default]
     Empty,
     Splashed,
+    Occupied(ShipType),
+    Destroyed(ShipType),
 }
 
 struct Ship {
     ship_type: ShipType,
     health: u8,
-    row: u8, 
-    col: u8,
+    position: GridPosition,
     orientation: Orientation,
 }
 
 impl Ship {
-    // Creates a new ship at the given location. Does not check if position is valid
-    fn new(ship_type: ShipType, row: u8, col: u8, orientation: Orientation) -> Ship {
+    // Creates a new ship at the given location. 
+    fn new(ship_type: ShipType, position: GridPosition, orientation: Orientation) -> Ship {
         Ship {
             ship_type,
             health: ship_type.length(),
-            row,
-            col,
+            position,
             orientation,
         }
     }
 }
 
 // Checks to see if a ship with the given length and location will fit into the grid
-fn fits_in_grid(length: u8, row: u8, col: u8, orientation: Orientation) -> bool {
+fn fits_in_grid(length: u8, position: GridPosition, orientation: Orientation) -> bool {
+    let row = position.row_index();
+    let col = position.col_index();
     let (rowmax, colmax) = match orientation {
-        Orientation::Vertical => (row + length - 1, col),
-        Orientation::Horizontal => (row, col + length - 1),
+        Orientation::Vertical => (row + length as usize - 1, col),
+        Orientation::Horizontal => (row, col + length as usize - 1),
     };
-    row < GRID_SIZE as u8 && col < GRID_SIZE as u8 && rowmax < GRID_SIZE as u8 && colmax < GRID_SIZE as u8
+    row < GRID_SIZE && col < GRID_SIZE && rowmax < GRID_SIZE && colmax < GRID_SIZE 
 }
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone)]
