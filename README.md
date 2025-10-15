@@ -1,4 +1,5 @@
->[!INFO] This is a work in progress
+> [!NOTE]
+> This is a work in progress
 
 # effnine
 Effnine (pronounced like f9) is a rust implementation of the classic strategy game Battleship. It uses a client / authoritative server model to prevent cheating. The server uses a REST API for stats and matchmaking and websockets for running the matches.
